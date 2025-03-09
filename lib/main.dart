@@ -349,4 +349,212 @@ class _PlanManagerScreenState extends State<PlanManagerScreen> {
       }
     }
   }
+  // Helper method to get priority text color
+  Color _getPriorityTextColor(String priority) {
+    switch (priority) {
+      case 'High':
+        return Colors.red[300]!;
+      case 'Medium':
+        return Colors.orange[300]!;
+      case 'Low':
+        return Colors.blue[300]!;
+      default:
+        return Colors.grey[300]!;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          "Travel Plan Manager",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.sort,
+              color: Colors.white,
+            ),
+            onPressed: _sortPlans,
+            tooltip: "Sort by priority",
+          ),
+        ],
+      ),
+      body: Container(
+        color: Colors.black, // Black background
+        child: Column(
+          children: [
+            // Calendar with DragTarget
+            Container(
+              decoration: BoxDecoration(
+                color: Color(0xFF121212), // Dark surface for calendar
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 4.0,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              margin: EdgeInsets.all(8),
+              child: DragTarget<Plan>(
+                onAccept: (plan) {
+                  // Update the plan's date when dropped on calendar
+                  setState(() {
+                    int planIndex = plans.indexOf(plan);
+                    plans[planIndex].date = selectedDate;
+                    _sortPlans();
+                  });
+                },
+                onWillAccept: (plan) => plan != null,
+                builder: (context, candidateData, rejectedData) {
+                  return TableCalendar(
+                    focusedDay: selectedDate,
+                    firstDay: DateTime(2000),
+                    lastDay: DateTime(2100),
+                    calendarFormat: _calendarFormat,
+                    selectedDayPredicate: (day) => isSameDay(selectedDate, day),
+                    onDaySelected: (selectedDay, focusedDay) {
+                      setState(() {
+                        selectedDate = selectedDay;
+                      });
+                    },
+                    onFormatChanged: (format) {
+                      setState(() {
+                        _calendarFormat = format;
+                      });
+                    },
+                    calendarStyle: CalendarStyle(
+                      todayDecoration: BoxDecoration(
+                        color: Colors.blue[800],
+                        shape: BoxShape.circle,
+                      ),
+                      selectedDecoration: BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                      ),
+                      outsideDaysVisible: false,
+                      defaultTextStyle: TextStyle(color: Colors.white),
+                      weekendTextStyle: TextStyle(color: Colors.red[200]),
+                      holidayTextStyle: TextStyle(color: Colors.orange[200]),
+                    ),
+                    headerStyle: HeaderStyle(
+                      formatButtonTextStyle: TextStyle(color: Colors.white),
+                      titleTextStyle: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                      leftChevronIcon: Icon(
+                        Icons.chevron_left,
+                        color: Colors.white,
+                      ),
+                      rightChevronIcon: Icon(
+                        Icons.chevron_right,
+                        color: Colors.white,
+                      ),
+                      formatButtonDecoration: BoxDecoration(
+                        color: Colors.blue[700],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    daysOfWeekStyle: DaysOfWeekStyle(
+                      weekdayStyle: TextStyle(color: Colors.grey[300]),
+                      weekendStyle: TextStyle(color: Colors.red[200]),
+                    ),
+                    calendarBuilders: CalendarBuilders(
+                      markerBuilder: (context, date, events) {
+                        // Mark days that have plans
+                        final hasPlans = plans.any((plan) =>
+                            plan.date.year == date.year &&
+                            plan.date.month == date.month &&
+                            plan.date.day == date.day);
+
+                        if (hasPlans) {
+                          return Positioned(
+                            right: 1,
+                            bottom: 1,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.blue[400],
+                              ),
+                            ),
+                          );
+                        }
+                        return null;
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // New plan drag target area
+            DragTarget<String>(
+              onAccept: (data) {
+                if (data == 'new_plan') {
+                  _showCreatePlanDialog(date: selectedDate);
+                }
+              },
+              builder: (context, candidateData, rejectedData) {
+                return Container(
+                  padding: EdgeInsets.all(10.0),
+                  margin: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: candidateData.isNotEmpty
+                          ? Colors.blue[700]!
+                          : Colors.grey[800]!,
+                      width: 2.0,
+                    ),
+                    borderRadius: BorderRadius.circular(8.0),
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  child: Center(
+                    child: Text(
+                      "Drop here to add a new plan for ${DateFormat('yyyy-MM-dd').format(selectedDate)}",
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            // Create Plan button (replacing floating action button)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: ElevatedButton.icon(
+                onPressed: () => _showCreatePlanDialog(date: selectedDate),
+                icon: Icon(
+                  Icons.add,
+                  color: Colors.white,
+                ),
+                label: Text(
+                  "Create Plan",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: Size(double.infinity, 48),
+                  backgroundColor: Colors.blue[700],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+
 
