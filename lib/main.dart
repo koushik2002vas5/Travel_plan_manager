@@ -45,6 +45,7 @@ class PlanManagerApp extends StatelessWidget {
     );
   }
 }
+
 class PlanManagerScreen extends StatefulWidget {
   @override
   _PlanManagerScreenState createState() => _PlanManagerScreenState();
@@ -127,6 +128,7 @@ class _PlanManagerScreenState extends State<PlanManagerScreen> {
       });
     });
   }
+
   // Show dialog for creating or editing a plan
   void _showCreatePlanDialog({int? index, DateTime? date}) {
     String name = index != null ? plans[index].name : '';
@@ -349,6 +351,7 @@ class _PlanManagerScreenState extends State<PlanManagerScreen> {
       }
     }
   }
+
   // Helper method to get priority text color
   Color _getPriorityTextColor(String priority) {
     switch (priority) {
@@ -556,5 +559,346 @@ class _PlanManagerScreenState extends State<PlanManagerScreen> {
                 ),
               ),
             ),
+            // Label for plans on selected date - FIXED to match the selected date
+            Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Text(
+                "Plans for ${DateFormat('yyyy-MM-dd').format(selectedDate)}",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.blue[200],
+                ),
+              ),
+            ),
 
+            // Draggable new plan option
+            Draggable<String>(
+              data: 'new_plan',
+              feedback: Material(
+                elevation: 4.0,
+                color: Colors.transparent,
+                child: Container(
+                  padding: EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: Color(0xFF1A344D),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: Text(
+                    "New Plan",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+              childWhenDragging: Container(
+                padding: EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  color: Colors.grey[800],
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                child: Text(
+                  "Drag to create",
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
+              ),
+              child: Container(
+                padding: EdgeInsets.all(10.0),
+                margin: EdgeInsets.symmetric(horizontal: 16.0),
+                decoration: BoxDecoration(
+                  color: Color(0xFF1A344D),
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.drag_indicator,
+                      color: Colors.blue[200],
+                    ),
+                    SizedBox(width: 8.0),
+                    Text(
+                      "Drag to add a new plan",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
+            // List of plans for the selected date
+            Expanded(
+              child: Container(
+                margin: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Color(0xFF121212),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: _filteredPlans.isEmpty
+                    ? Center(
+                        child: Text(
+                          "No plans for this date",
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 16,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _filteredPlans.length,
+                        itemBuilder: (context, index) {
+                          final plan = _filteredPlans[index];
+                          final planIndex = plans.indexOf(plan);
+
+                          // Make each plan item draggable
+                          return LongPressDraggable<Plan>(
+                            data: plan,
+                            feedback: Material(
+                              elevation: 4.0,
+                              color: Colors.transparent,
+                              child: Container(
+                                width: MediaQuery.of(context).size.width * 0.9,
+                                padding: EdgeInsets.all(16.0),
+                                decoration: BoxDecoration(
+                                  color: _getPlanColor(plan),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  border: Border.all(
+                                    color: Colors.grey[800]!,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  plan.name,
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                            child: Dismissible(
+                              key: Key(
+                                  "plan_${planIndex}_${DateTime.now().millisecondsSinceEpoch}"),
+                              onDismissed: (direction) {
+                                // Handle the dismissal without removing from list yet
+                                _toggleCompletion(planIndex, direction);
+
+                                // Re-render the item
+                                setState(() {});
+                              },
+                              confirmDismiss: (direction) async {
+                                if (direction == DismissDirection.endToStart) {
+                                  if (!plan.isCompleted) {
+                                    setState(() {
+                                      plans[planIndex].isCompleted = true;
+                                      plans[planIndex].status = 'completed';
+                                    });
+                                  }
+                                } else if (direction ==
+                                    DismissDirection.startToEnd) {
+                                  if (plan.isCompleted) {
+                                    setState(() {
+                                      plans[planIndex].isCompleted = false;
+                                      plans[planIndex].status = 'pending';
+                                    });
+                                  }
+                                }
+                                // Return false to prevent actual dismissal
+                                return false;
+                              },
+                              background: Container(
+                                color: Color(0xFF1B3D2F), // Dark green
+                                alignment: Alignment.centerLeft,
+                                padding: EdgeInsets.only(left: 20),
+                                child:
+                                    Icon(Icons.undo, color: Colors.green[300]),
+                              ),
+                              secondaryBackground: Container(
+                                color: Color(0xFF1B2D3D), // Dark blue
+                                alignment: Alignment.centerRight,
+                                padding: EdgeInsets.only(right: 20),
+                                child:
+                                    Icon(Icons.check, color: Colors.blue[300]),
+                              ),
+                              child: GestureDetector(
+                                onDoubleTap: () {
+                                  // Show confirmation dialog before deletion
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      backgroundColor: Color(0xFF1E1E1E),
+                                      title: Text(
+                                        "Delete Plan",
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                      content: Text(
+                                        "Are you sure you want to delete '${plan.name}'?",
+                                        style: TextStyle(color: Colors.white70),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: Text(
+                                            "Cancel",
+                                            style: TextStyle(
+                                                color: Colors.grey[400]),
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            _deletePlan(planIndex);
+                                            Navigator.pop(context);
+                                          },
+                                          child: Text(
+                                            "Delete",
+                                            style: TextStyle(
+                                                color: Colors.red[300]),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                onLongPress: () {
+                                  _showCreatePlanDialog(index: planIndex);
+                                },
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: _getPlanColor(plan),
+                                    borderRadius: BorderRadius.circular(8.0),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 2.0,
+                                        offset: Offset(0, 1),
+                                      ),
+                                    ],
+                                    border: Border.all(
+                                      color: Colors.grey[800]!,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  margin: EdgeInsets.symmetric(
+                                      vertical: 4.0, horizontal: 8.0),
+                                  child: ListTile(
+                                    title: Text(
+                                      plan.name,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        decoration: plan.isCompleted
+                                            ? TextDecoration.lineThrough
+                                            : null,
+                                      ),
+                                    ),
+                                    subtitle: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          plan.description,
+                                          style: TextStyle(
+                                              color: Colors.grey[400]),
+                                        ),
+                                        SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: _getPriorityColor(
+                                                        plan.priority)
+                                                    .withOpacity(0.2),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: _getPriorityColor(
+                                                      plan.priority),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                plan.priority,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: _getPriorityTextColor(
+                                                      plan.priority),
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(width: 8),
+                                            Container(
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: (plan.status ==
+                                                            'completed'
+                                                        ? Colors.green[900]
+                                                        : Colors.orange[900])!
+                                                    .withOpacity(0.2),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color:
+                                                      plan.status == 'completed'
+                                                          ? Colors.green[700]!
+                                                          : Colors.orange[700]!,
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                plan.status.capitalize(),
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color:
+                                                      plan.status == 'completed'
+                                                          ? Colors.green[300]
+                                                          : Colors.orange[300],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    trailing: Icon(
+                                      plan.isCompleted
+                                          ? Icons.check_circle
+                                          : Icons.circle_outlined,
+                                      color: plan.isCompleted
+                                          ? Colors.green[300]
+                                          : Colors.grey[400],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper method to get priority color
+  Color _getPriorityColor(String priority) {
+    switch (priority) {
+      case 'High':
+        return Colors.red[700]!;
+      case 'Medium':
+        return Colors.orange[700]!;
+      case 'Low':
+        return Colors.blue[700]!;
+      default:
+        return Colors.grey[700]!;
+    }
+  }
+}
+
+// Extension to capitalize strings
+extension StringExtension on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${this.substring(1)}";
+  }
+}
